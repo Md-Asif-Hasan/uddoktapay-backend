@@ -2,7 +2,19 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const admin = require('firebase-admin');
+
+// Firebase Admin SDK import with error handling
+let admin;
+try {
+  admin = require('firebase-admin');
+  if (!admin) {
+    throw new Error('firebase-admin module is undefined');
+  }
+  console.log('firebase-admin module loaded successfully');
+} catch (error) {
+  console.error('Failed to import firebase-admin:', error.message);
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +29,26 @@ app.use(express.json());
 // Firebase Admin SDK Initialization (Environment Variables)
 let db;
 try {
+  // Check if required environment variables are present
+  const requiredEnvVars = [
+    'FIREBASE_TYPE',
+    'FIREBASE_PROJECT_ID',
+    'FIREBASE_PRIVATE_KEY_ID',
+    'FIREBASE_PRIVATE_KEY',
+    'FIREBASE_CLIENT_EMAIL',
+    'FIREBASE_CLIENT_ID',
+    'FIREBASE_AUTH_URI',
+    'FIREBASE_TOKEN_URI',
+    'FIREBASE_AUTH_PROVIDER_X509_CERT_URL',
+    'FIREBASE_CLIENT_X509_CERT_URL'
+  ];
+
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  if (missingVars.length > 0) {
+    console.error('Missing required Firebase environment variables:', missingVars);
+    process.exit(1);
+  }
+
   const serviceAccount = {
     type: process.env.FIREBASE_TYPE,
     project_id: process.env.FIREBASE_PROJECT_ID,
@@ -30,6 +62,8 @@ try {
     client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
   };
 
+  console.log('Firebase service account loaded for project:', serviceAccount.project_id);
+
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
@@ -37,7 +71,8 @@ try {
   db = admin.firestore();
   console.log('Firebase Admin SDK initialized successfully');
 } catch (error) {
-  console.error('Firebase initialization error:', error);
+  console.error('Firebase initialization error:', error.message);
+  console.error('Error details:', error);
   process.exit(1);
 }
 
