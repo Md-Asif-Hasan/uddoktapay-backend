@@ -63,9 +63,21 @@ try {
   };
 
   console.log('Firebase service account loaded for project:', serviceAccount.project_id);
+  console.log('Admin object keys:', Object.keys(admin));
+  console.log('Admin credential type:', typeof admin.credential);
+
+  // Try different initialization methods
+  let credential;
+  if (admin.credential && admin.credential.cert) {
+    credential = admin.credential.cert(serviceAccount);
+  } else if (admin.cert) {
+    credential = admin.cert(serviceAccount);
+  } else {
+    throw new Error('Firebase admin credential method not found. Available keys: ' + Object.keys(admin).join(', '));
+  }
 
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+    credential: credential,
   });
 
   db = admin.firestore();
