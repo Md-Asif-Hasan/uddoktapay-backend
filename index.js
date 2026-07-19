@@ -173,13 +173,15 @@ const PAYMENT_PACKAGES = {
 
 app.get('/payment-success', (req, res) => {
   const { packageId } = req.query;
-  const appUrl = `https://localhost/payment-success${packageId ? '?packageId=' + encodeURIComponent(packageId) : ''}`;
+  const pkgParam = packageId ? '?packageId=' + encodeURIComponent(packageId) : '';
+  const appSchemeUrl = `com.eternora.app://payment-success${pkgParam}`;
+  const webLocalhostUrl = `https://localhost/payment-success${pkgParam}`;
+
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="refresh" content="3;url=${appUrl}" />
   <title>Payment Successful - Eternora</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -195,8 +197,9 @@ app.get('/payment-success', (req, res) => {
     .btn { display: inline-block; background: rgba(255,255,255,0.25); color: white;
            padding: 14px 32px; border-radius: 50px; font-size: 15px; font-weight: 600;
            text-decoration: none; border: 2px solid rgba(255,255,255,0.4);
-           cursor: pointer; transition: background 0.2s; width: 100%; text-align: center; }
+           cursor: pointer; transition: background 0.2s; width: 100%; text-align: center; margin-bottom: 10px; }
     .btn:hover { background: rgba(255,255,255,0.4); }
+    .btn-secondary { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.2); }
     .countdown { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 16px; }
   </style>
 </head>
@@ -204,21 +207,32 @@ app.get('/payment-success', (req, res) => {
   <div class="card">
     <div class="icon">✅</div>
     <h1>Payment Successful!</h1>
-    <p>Your purchase has been confirmed. Returning you to Eternora now...</p>
-    <a class="btn" href="${appUrl}">Open Eternora App</a>
-    <div class="countdown">Auto-returning in <span id="sec">3</span>s...</div>
+    <p>Your purchase is confirmed. Please tap below to return to the Eternora app, or you can manually switch back to the app.</p>
+    <a class="btn" href="${appSchemeUrl}">Return to Eternora App</a>
+    <a class="btn btn-secondary" href="${webLocalhostUrl}">Fallback Web Link</a>
+    <button class="btn btn-secondary" onclick="window.close()">Close Window</button>
+    <div class="countdown">Redirecting in <span id="sec">3</span>s...</div>
   </div>
   <script>
-    var appUrl = '${appUrl}';
+    var appSchemeUrl = '${appSchemeUrl}';
+    var webLocalhostUrl = '${webLocalhostUrl}';
     var t = 3;
     var el = document.getElementById('sec');
-    // Strategy 1: countdown JS redirect
+    
+    // Attempt auto deep-link
+    window.location.href = appSchemeUrl;
+
     var interval = setInterval(function() {
       t--; if (el) el.textContent = t;
-      if (t <= 0) { clearInterval(interval); window.location.replace(appUrl); }
+      if (t <= 0) { 
+        clearInterval(interval); 
+        // Fallback auto redirections
+        window.location.replace(appSchemeUrl);
+        setTimeout(function() {
+          window.location.replace(webLocalhostUrl);
+        }, 1000);
+      }
     }, 1000);
-    // Strategy 2: also try immediately after short delay
-    setTimeout(function() { window.location.href = appUrl; }, 200);
   </script>
 </body>
 </html>`);
@@ -226,13 +240,15 @@ app.get('/payment-success', (req, res) => {
 
 app.get('/payment-cancel', (req, res) => {
   const { packageId } = req.query;
-  const appUrl = `https://localhost/payment-cancel${packageId ? '?packageId=' + encodeURIComponent(packageId) : ''}`;
+  const pkgParam = packageId ? '?packageId=' + encodeURIComponent(packageId) : '';
+  const appSchemeUrl = `com.eternora.app://payment-cancel${pkgParam}`;
+  const webLocalhostUrl = `https://localhost/payment-cancel${pkgParam}`;
+
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="refresh" content="5;url=${appUrl}" />
   <title>Payment Cancelled - Eternora</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -247,9 +263,9 @@ app.get('/payment-cancel', (req, res) => {
     .btn { display: block; background: rgba(255,255,255,0.25); color: white;
            padding: 14px 32px; border-radius: 50px; font-size: 15px; font-weight: 600;
            text-decoration: none; border: 2px solid rgba(255,255,255,0.4);
-           cursor: pointer; transition: background 0.2s; margin-bottom: 12px; text-align: center; }
+           cursor: pointer; transition: background 0.2s; margin-bottom: 10px; text-align: center; }
     .btn:hover { background: rgba(255,255,255,0.4); }
-    .btn-home { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+    .btn-secondary { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.2); }
     .countdown { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 16px; }
   </style>
 </head>
@@ -257,22 +273,32 @@ app.get('/payment-cancel', (req, res) => {
   <div class="card">
     <div class="icon">❌</div>
     <h1>Payment Cancelled</h1>
-    <p>No charges were made. Tap below to try again or go back to the app.</p>
-    <a class="btn" href="${appUrl}">Try Again in App</a>
-    <a class="btn btn-home" href="https://localhost/home">Return to Home</a>
+    <p>No charges were made. Tap below to return to the Eternora app and try again, or you can manually switch back to the app.</p>
+    <a class="btn" href="${appSchemeUrl}">Try Again in App</a>
+    <a class="btn btn-secondary" href="${webLocalhostUrl}">Fallback Web Link</a>
+    <button class="btn btn-secondary" onclick="window.close()">Close Window</button>
     <div class="countdown">Auto-returning in <span id="sec">5</span>s...</div>
   </div>
   <script>
-    var appUrl = '${appUrl}';
+    var appSchemeUrl = '${appSchemeUrl}';
+    var webLocalhostUrl = '${webLocalhostUrl}';
     var t = 5;
     var el = document.getElementById('sec');
-    // Strategy 1: countdown JS redirect
+    
+    // Attempt auto deep-link
+    window.location.href = appSchemeUrl;
+
     var interval = setInterval(function() {
       t--; if (el) el.textContent = t;
-      if (t <= 0) { clearInterval(interval); window.location.replace(appUrl); }
+      if (t <= 0) { 
+        clearInterval(interval); 
+        // Fallback auto redirections
+        window.location.replace(appSchemeUrl);
+        setTimeout(function() {
+          window.location.replace(webLocalhostUrl);
+        }, 1000);
+      }
     }, 1000);
-    // Strategy 2: also try immediately after short delay
-    setTimeout(function() { window.location.href = appUrl; }, 200);
   </script>
 </body>
 </html>`);
