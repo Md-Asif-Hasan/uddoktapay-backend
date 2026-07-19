@@ -23,13 +23,32 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'capacitor://localhost',
-    'file://',
-    'ionic://localhost',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // Build list of allowed origins from env vars (supports comma-separated list)
+    const envOrigins = (process.env.FRONTEND_URL || '')
+      .split(',')
+      .map(o => o.trim())
+      .filter(Boolean);
+
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:8080',
+      'capacitor://localhost',
+      'ionic://localhost',
+      ...envOrigins
+    ].filter(Boolean);
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -150,6 +169,101 @@ const PAYMENT_PACKAGES = {
   }
 };
 
+// ─── Payment result pages served by backend (app is Android/Capacitor, no hosted web frontend) ───
+
+app.get('/payment-success', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Successful - Eternora</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           background: linear-gradient(135deg, #064e3b, #065f46, #047857);
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: white;
+           padding: 20px; }
+    .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px);
+            border-radius: 24px; padding: 48px 40px; text-align: center; max-width: 420px; width: 100%; }
+    .icon { font-size: 72px; margin-bottom: 20px; animation: pop 0.5s ease; }
+    @keyframes pop { 0%{transform:scale(0)} 80%{transform:scale(1.2)} 100%{transform:scale(1)} }
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 12px; }
+    p { color: rgba(255,255,255,0.85); font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
+    .btn { display: inline-block; background: rgba(255,255,255,0.25); color: white;
+           padding: 14px 32px; border-radius: 50px; font-size: 15px; font-weight: 600;
+           text-decoration: none; border: 2px solid rgba(255,255,255,0.4);
+           cursor: pointer; transition: background 0.2s; margin-top: 8px; }
+    .btn:hover { background: rgba(255,255,255,0.35); }
+    .countdown { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✅</div>
+    <h1>Payment Successful!</h1>
+    <p>Your purchase has been confirmed and your premium benefits are being activated in Eternora.</p>
+    <a class="btn" id="returnBtn" href="https://localhost/payment-success">Return to App</a>
+    <div class="countdown" id="countdown">Returning to app in <span id="sec">3</span>s...</div>
+  </div>
+  <script>
+    var t = 3;
+    var el = document.getElementById('sec');
+    var interval = setInterval(function() {
+      t--; el.textContent = t;
+      if (t <= 0) { clearInterval(interval); window.location.href = 'https://localhost/payment-success'; }
+    }, 1000);
+  </script>
+</body>
+</html>`);
+});
+
+app.get('/payment-cancel', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Cancelled - Eternora</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           background: linear-gradient(135deg, #1e1b4b, #312e81, #1e3a5f);
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: white;
+           padding: 20px; }
+    .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px);
+            border-radius: 24px; padding: 48px 40px; text-align: center; max-width: 420px; width: 100%; }
+    .icon { font-size: 72px; margin-bottom: 20px; }
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 12px; }
+    p { color: rgba(255,255,255,0.85); font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
+    .btn { display: inline-block; background: rgba(255,255,255,0.25); color: white;
+           padding: 14px 32px; border-radius: 50px; font-size: 15px; font-weight: 600;
+           text-decoration: none; border: 2px solid rgba(255,255,255,0.4);
+           cursor: pointer; transition: background 0.2s; margin-top: 8px; }
+    .btn:hover { background: rgba(255,255,255,0.35); }
+    .countdown { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">❌</div>
+    <h1>Payment Cancelled</h1>
+    <p>Your payment was not completed. No charges were made. You can return to Eternora and try again.</p>
+    <a class="btn" href="https://localhost/payment-cancel">Return to App</a>
+    <div class="countdown" id="countdown">Returning to app in <span id="sec">5</span>s...</div>
+  </div>
+  <script>
+    var t = 5;
+    var el = document.getElementById('sec');
+    var interval = setInterval(function() {
+      t--; el.textContent = t;
+      if (t <= 0) { clearInterval(interval); window.location.href = 'https://localhost/payment-cancel'; }
+    }, 1000);
+  </script>
+</body>
+</html>`);
+});
+
 // POST /api/checkout - Initialize payment session
 app.post('/api/checkout', async (req, res) => {
   try {
@@ -162,17 +276,23 @@ app.post('/api/checkout', async (req, res) => {
       });
     }
 
-    const package = PAYMENT_PACKAGES[packageId];
-    if (!package) {
+    const pkg = PAYMENT_PACKAGES[packageId];
+    if (!pkg) {
       return res.status(400).json({ 
         success: false, 
         error: 'Invalid package ID' 
       });
     }
 
+    // Use BACKEND_URL for redirect URLs — backend serves its own payment result pages
+    // This works for Android/Capacitor apps that have no hosted web frontend
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+
     // Prepare UddoktaPay payment request
     const paymentData = {
-      amount: package.amount,
+      full_name: fullName || 'Customer',
+      email: email || '',
+      amount: pkg.amount,
       metadata: {
         packageId,
         uid,
@@ -180,10 +300,13 @@ app.post('/api/checkout', async (req, res) => {
         email: email || '',
         phone: phone || ''
       },
-      redirect_url: `${process.env.FRONTEND_URL}/payment-success`,
-      cancel_url: `${process.env.FRONTEND_URL}/payment-cancel`,
-      webhook_url: `${process.env.WEBHOOK_URL || 'https://your-backend-url.onrender.com'}/api/webhook`
+      redirect_url: `${backendUrl}/payment-success`,
+      cancel_url: `${backendUrl}/payment-cancel`,
+      webhook_url: `${process.env.WEBHOOK_URL}/api/webhook`
     };
+
+    console.log('Initiating UddoktaPay checkout for package:', packageId, 'uid:', uid);
+    console.log('UddoktaPay URL:', `${process.env.UDDOKTAPAY_BASE_URL}/checkout`);
 
     // Call UddoktaPay API
     const uddoktaPayResponse = await axios.post(
@@ -197,7 +320,9 @@ app.post('/api/checkout', async (req, res) => {
       }
     );
 
-    if (uddoktaPayResponse.data.success) {
+    console.log('UddoktaPay response:', uddoktaPayResponse.data);
+
+    if (uddoktaPayResponse.data.payment_url) {
       res.json({
         success: true,
         paymentUrl: uddoktaPayResponse.data.payment_url,
@@ -206,14 +331,19 @@ app.post('/api/checkout', async (req, res) => {
     } else {
       res.status(400).json({
         success: false,
-        error: 'Failed to create payment session'
+        error: uddoktaPayResponse.data.message || 'Failed to create payment session',
+        raw: uddoktaPayResponse.data
       });
     }
   } catch (error) {
-    console.error('Checkout error:', error.response?.data || error.message);
+    console.error('Checkout error details:', {
+      message: error.message,
+      responseData: error.response?.data,
+      responseStatus: error.response?.status
+    });
     res.status(500).json({
       success: false,
-      error: 'Internal server error during checkout'
+      error: error.response?.data?.message || 'Internal server error during checkout'
     });
   }
 });
@@ -232,9 +362,9 @@ app.post('/api/webhook', async (req, res) => {
 
     if (status === 'completed') {
       const { packageId, uid } = metadata;
-      const package = PAYMENT_PACKAGES[packageId];
+      const pkg = PAYMENT_PACKAGES[packageId];
 
-      if (!package) {
+      if (!pkg) {
         console.error('Invalid package ID in webhook:', packageId);
         return res.status(400).json({ success: false, error: 'Invalid package' });
       }
@@ -269,7 +399,7 @@ app.post('/api/webhook', async (req, res) => {
             invoiceId: invoice_id,
             transactionId: transaction_id,
             packageId,
-            packageName: package.name,
+            packageName: pkg.name,
             amount,
             status: 'completed',
             timestamp: new Date().toISOString()
@@ -278,7 +408,7 @@ app.post('/api/webhook', async (req, res) => {
       };
 
       // Handle subscription updates
-      if (package.plan === 'lifetime') {
+      if (pkg.plan === 'lifetime') {
         updateData.eternora_subscriptionActive = true;
         updateData.eternora_subscriptionPlan = 'lifetime';
         updateData.eternora_subscriptionStart = new Date().toISOString();
@@ -286,16 +416,16 @@ app.post('/api/webhook', async (req, res) => {
         updateData.eternora_premiumLifeAccess = true;
 
         // Add bonus coins for lifetime subscription
-        if (package.coins) {
-          updateData.eternora_currencyBalance = currentCoins + package.coins;
+        if (pkg.coins) {
+          updateData.eternora_currencyBalance = currentCoins + pkg.coins;
         }
-      } else if (package.plan === 'monthly' || package.plan === 'seasonal') {
+      } else if (pkg.plan === 'monthly' || pkg.plan === 'seasonal') {
         const startDate = new Date();
         const endDate = new Date();
-        endDate.setDate(endDate.getDate() + (package.duration || 30));
+        endDate.setDate(endDate.getDate() + (pkg.duration || 30));
 
         updateData.eternora_subscriptionActive = true;
-        updateData.eternora_subscriptionPlan = package.plan;
+        updateData.eternora_subscriptionPlan = pkg.plan;
         updateData.eternora_subscriptionStart = startDate.toISOString();
         updateData.eternora_subscriptionEnd = endDate.toISOString();
         updateData.eternora_adFree = true;
@@ -303,22 +433,22 @@ app.post('/api/webhook', async (req, res) => {
       }
 
       // Handle coin purchases
-      if (package.coins && !package.plan) {
-        updateData.eternora_currencyBalance = currentCoins + package.coins;
+      if (pkg.coins && !pkg.plan) {
+        updateData.eternora_currencyBalance = currentCoins + pkg.coins;
       }
 
       // Handle ad-free purchases
-      if (package.adFree && !package.plan) {
+      if (pkg.adFree && !pkg.plan) {
         const startDate = new Date();
         const endDate = new Date();
-        endDate.setDate(endDate.getDate() + (package.duration || 7));
+        endDate.setDate(endDate.getDate() + (pkg.duration || 7));
 
         updateData.eternora_adFree = true;
         updateData.eternora_adFreeEnd = endDate.toISOString();
       }
 
       // Handle character pack purchases
-      if (package.characters) {
+      if (pkg.characters) {
         const unlockedCharacters = userData.eternora_unlockedCharacters || [];
         // Add character pack unlock logic here
         updateData.eternora_unlockedCharacters = unlockedCharacters;
