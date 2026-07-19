@@ -172,18 +172,20 @@ const PAYMENT_PACKAGES = {
 // ─── Payment result pages served by backend (app is Android/Capacitor, no hosted web frontend) ───
 
 app.get('/payment-success', (req, res) => {
+  const { packageId } = req.query;
+  const appUrl = `https://localhost/payment-success${packageId ? '?packageId=' + encodeURIComponent(packageId) : ''}`;
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="refresh" content="3;url=${appUrl}" />
   <title>Payment Successful - Eternora</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
            background: linear-gradient(135deg, #064e3b, #065f46, #047857);
-           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: white;
-           padding: 20px; }
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: white; padding: 20px; }
     .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px);
             border-radius: 24px; padding: 48px 40px; text-align: center; max-width: 420px; width: 100%; }
     .icon { font-size: 72px; margin-bottom: 20px; animation: pop 0.5s ease; }
@@ -193,8 +195,8 @@ app.get('/payment-success', (req, res) => {
     .btn { display: inline-block; background: rgba(255,255,255,0.25); color: white;
            padding: 14px 32px; border-radius: 50px; font-size: 15px; font-weight: 600;
            text-decoration: none; border: 2px solid rgba(255,255,255,0.4);
-           cursor: pointer; transition: background 0.2s; margin-top: 8px; }
-    .btn:hover { background: rgba(255,255,255,0.35); }
+           cursor: pointer; transition: background 0.2s; width: 100%; text-align: center; }
+    .btn:hover { background: rgba(255,255,255,0.4); }
     .countdown { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 16px; }
   </style>
 </head>
@@ -202,45 +204,52 @@ app.get('/payment-success', (req, res) => {
   <div class="card">
     <div class="icon">✅</div>
     <h1>Payment Successful!</h1>
-    <p>Your purchase has been confirmed and your premium benefits are being activated in Eternora.</p>
-    <a class="btn" id="returnBtn" href="https://localhost/payment-success">Return to App</a>
-    <div class="countdown" id="countdown">Returning to app in <span id="sec">3</span>s...</div>
+    <p>Your purchase has been confirmed. Returning you to Eternora now...</p>
+    <a class="btn" href="${appUrl}">Open Eternora App</a>
+    <div class="countdown">Auto-returning in <span id="sec">3</span>s...</div>
   </div>
   <script>
+    var appUrl = '${appUrl}';
     var t = 3;
     var el = document.getElementById('sec');
+    // Strategy 1: countdown JS redirect
     var interval = setInterval(function() {
-      t--; el.textContent = t;
-      if (t <= 0) { clearInterval(interval); window.location.href = 'https://localhost/payment-success'; }
+      t--; if (el) el.textContent = t;
+      if (t <= 0) { clearInterval(interval); window.location.replace(appUrl); }
     }, 1000);
+    // Strategy 2: also try immediately after short delay
+    setTimeout(function() { window.location.href = appUrl; }, 200);
   </script>
 </body>
 </html>`);
 });
 
 app.get('/payment-cancel', (req, res) => {
+  const { packageId } = req.query;
+  const appUrl = `https://localhost/payment-cancel${packageId ? '?packageId=' + encodeURIComponent(packageId) : ''}`;
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="refresh" content="5;url=${appUrl}" />
   <title>Payment Cancelled - Eternora</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
            background: linear-gradient(135deg, #1e1b4b, #312e81, #1e3a5f);
-           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: white;
-           padding: 20px; }
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: white; padding: 20px; }
     .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px);
             border-radius: 24px; padding: 48px 40px; text-align: center; max-width: 420px; width: 100%; }
     .icon { font-size: 72px; margin-bottom: 20px; }
     h1 { font-size: 26px; font-weight: 700; margin-bottom: 12px; }
     p { color: rgba(255,255,255,0.85); font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
-    .btn { display: inline-block; background: rgba(255,255,255,0.25); color: white;
+    .btn { display: block; background: rgba(255,255,255,0.25); color: white;
            padding: 14px 32px; border-radius: 50px; font-size: 15px; font-weight: 600;
            text-decoration: none; border: 2px solid rgba(255,255,255,0.4);
-           cursor: pointer; transition: background 0.2s; margin-top: 8px; }
-    .btn:hover { background: rgba(255,255,255,0.35); }
+           cursor: pointer; transition: background 0.2s; margin-bottom: 12px; text-align: center; }
+    .btn:hover { background: rgba(255,255,255,0.4); }
+    .btn-home { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
     .countdown { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 16px; }
   </style>
 </head>
@@ -248,17 +257,22 @@ app.get('/payment-cancel', (req, res) => {
   <div class="card">
     <div class="icon">❌</div>
     <h1>Payment Cancelled</h1>
-    <p>Your payment was not completed. No charges were made. You can return to Eternora and try again.</p>
-    <a class="btn" href="https://localhost/payment-cancel">Return to App</a>
-    <div class="countdown" id="countdown">Returning to app in <span id="sec">5</span>s...</div>
+    <p>No charges were made. Tap below to try again or go back to the app.</p>
+    <a class="btn" href="${appUrl}">Try Again in App</a>
+    <a class="btn btn-home" href="https://localhost/home">Return to Home</a>
+    <div class="countdown">Auto-returning in <span id="sec">5</span>s...</div>
   </div>
   <script>
+    var appUrl = '${appUrl}';
     var t = 5;
     var el = document.getElementById('sec');
+    // Strategy 1: countdown JS redirect
     var interval = setInterval(function() {
-      t--; el.textContent = t;
-      if (t <= 0) { clearInterval(interval); window.location.href = 'https://localhost/payment-cancel'; }
+      t--; if (el) el.textContent = t;
+      if (t <= 0) { clearInterval(interval); window.location.replace(appUrl); }
     }, 1000);
+    // Strategy 2: also try immediately after short delay
+    setTimeout(function() { window.location.href = appUrl; }, 200);
   </script>
 </body>
 </html>`);
@@ -301,8 +315,8 @@ app.post('/api/checkout', async (req, res) => {
         email: email || '',
         phone: phone || ''
       },
-      redirect_url: `${backendUrl}/payment-success`,
-      cancel_url: `${backendUrl}/payment-cancel`,
+      redirect_url: `${backendUrl}/payment-success?packageId=${encodeURIComponent(packageId)}`,
+      cancel_url: `${backendUrl}/payment-cancel?packageId=${encodeURIComponent(packageId)}`,
       webhook_url: `${process.env.WEBHOOK_URL}/api/webhook`
     };
 
@@ -501,6 +515,12 @@ app.get('/api/verify/:uid', async (req, res) => {
       }
     }
 
+    // Get the most recent payment from history
+    const paymentHistory = userData.eternora_paymentHistory || [];
+    const lastPayment = paymentHistory.length > 0
+      ? paymentHistory[paymentHistory.length - 1]
+      : null;
+
     res.json({
       success: true,
       subscription: {
@@ -509,8 +529,10 @@ app.get('/api/verify/:uid', async (req, res) => {
         end: subscriptionEnd
       },
       adFree: userData.eternora_adFree || false,
+      adFreeEnd: userData.eternora_adFreeEnd || null,
       premiumLifeAccess: userData.eternora_premiumLifeAccess || false,
-      coins: userData.eternora_currencyBalance || 0
+      coins: userData.eternora_currencyBalance || 0,
+      lastPayment
     });
   } catch (error) {
     console.error('Verify error:', error);
