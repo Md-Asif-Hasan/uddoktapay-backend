@@ -5,11 +5,13 @@ const axios = require('axios');
 
 // Firebase Admin SDK import with error handling
 let admin;
+let getFirestore;
 try {
   admin = require('firebase-admin');
   if (!admin) {
     throw new Error('firebase-admin module is undefined');
   }
+  getFirestore = require('firebase-admin/firestore').getFirestore;
   console.log('firebase-admin module loaded successfully');
 } catch (error) {
   console.error('Failed to import firebase-admin:', error.message);
@@ -69,8 +71,8 @@ try {
     credential: admin.cert(serviceAccount),
   });
 
-  // Access Firestore through the app instance
-  db = app.firestore();
+  // Access Firestore using getFirestore
+  db = getFirestore();
   console.log('Firebase Admin SDK initialized successfully');
 } catch (error) {
   console.error('Firebase initialization error:', error.message);
