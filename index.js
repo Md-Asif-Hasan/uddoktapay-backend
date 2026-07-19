@@ -293,6 +293,7 @@ app.post('/api/checkout', async (req, res) => {
       full_name: fullName || 'Customer',
       email: email || '',
       amount: pkg.amount,
+      currency: 'BDT',                        // ← must be explicit, defaults to USD otherwise
       metadata: {
         packageId,
         uid,
