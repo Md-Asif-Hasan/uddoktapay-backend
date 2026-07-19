@@ -42,12 +42,14 @@ try {
     'FIREBASE_AUTH_URI',
     'FIREBASE_TOKEN_URI',
     'FIREBASE_AUTH_PROVIDER_X509_CERT_URL',
-    'FIREBASE_CLIENT_X509_CERT_URL'
+    'FIREBASE_CLIENT_X509_CERT_URL',
+    'UDDOKTAPAY_API_KEY',
+    'UDDOKTAPAY_BASE_URL'
   ];
 
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
   if (missingVars.length > 0) {
-    console.error('Missing required Firebase environment variables:', missingVars);
+    console.error('Missing required environment variables:', missingVars);
     process.exit(1);
   }
 
@@ -213,6 +215,13 @@ app.post('/api/checkout', async (req, res) => {
 // POST /api/webhook - Handle UddoktaPay payment notifications
 app.post('/api/webhook', async (req, res) => {
   try {
+    // Verify webhook source by validating the API key header
+    const requestApiKey = req.headers['rt-uddoktapay-api-key'];
+    if (!requestApiKey || requestApiKey !== process.env.UDDOKTAPAY_API_KEY) {
+      console.warn('Unauthorized webhook request received');
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
     const { invoice_id, status, amount, metadata, transaction_id } = req.body;
 
     if (status === 'completed') {
@@ -236,6 +245,15 @@ app.post('/api/webhook', async (req, res) => {
       const userData = userDoc.data();
       const currentCoins = userData.eternora_currencyBalance || 0;
       const paymentHistory = userData.eternora_paymentHistory || [];
+
+      // Check if transaction has already been processed (idempotency check)
+      const alreadyProcessed = paymentHistory.some(
+        payment => payment.invoiceId === invoice_id || payment.transactionId === transaction_id
+      );
+      if (alreadyProcessed) {
+        console.log(`Webhook: transaction ${transaction_id} or invoice ${invoice_id} already processed.`);
+        return res.json({ success: true, message: 'Already processed' });
+      }
 
       // Prepare update data
       const updateData = {
