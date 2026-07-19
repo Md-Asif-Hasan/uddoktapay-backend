@@ -366,6 +366,15 @@ app.get('/api/verify/:uid', async (req, res) => {
   }
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'UddoktaPay Payment Gateway Backend is running successfully.',
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
