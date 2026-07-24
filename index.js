@@ -56,55 +56,54 @@ app.use(express.json());
 // Firebase Admin SDK Initialization (Environment Variables)
 let db;
 try {
-  // Check if required environment variables are present
+  // Check if primary environment variables are present
   const requiredEnvVars = [
-    'FIREBASE_TYPE',
     'FIREBASE_PROJECT_ID',
-    'FIREBASE_PRIVATE_KEY_ID',
     'FIREBASE_PRIVATE_KEY',
     'FIREBASE_CLIENT_EMAIL',
-    'FIREBASE_CLIENT_ID',
-    'FIREBASE_AUTH_URI',
-    'FIREBASE_TOKEN_URI',
-    'FIREBASE_AUTH_PROVIDER_X509_CERT_URL',
-    'FIREBASE_CLIENT_X509_CERT_URL',
     'UDDOKTAPAY_API_KEY',
     'UDDOKTAPAY_BASE_URL'
   ];
 
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
   if (missingVars.length > 0) {
-    console.error('Missing required environment variables:', missingVars);
-    process.exit(1);
+    console.warn('⚠️ Warning: Missing environment variables:', missingVars.join(', '));
   }
 
-  const serviceAccount = {
-    type: process.env.FIREBASE_TYPE,
-    project_id: process.env.FIREBASE_PROJECT_ID,
-    private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-    private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    client_email: process.env.FIREBASE_CLIENT_EMAIL,
-    client_id: process.env.FIREBASE_CLIENT_ID,
-    auth_uri: process.env.FIREBASE_AUTH_URI,
-    token_uri: process.env.FIREBASE_TOKEN_URI,
-    auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
-    client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
-  };
+  let firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY || '';
+  if ((firebasePrivateKey.startsWith('"') && firebasePrivateKey.endsWith('"')) ||
+      (firebasePrivateKey.startsWith("'") && firebasePrivateKey.endsWith("'"))) {
+    firebasePrivateKey = firebasePrivateKey.slice(1, -1);
+  }
+  firebasePrivateKey = firebasePrivateKey.replace(/\\n/g, '\n');
 
-  console.log('Firebase service account loaded for project:', serviceAccount.project_id);
+  if (process.env.FIREBASE_PROJECT_ID && firebasePrivateKey && process.env.FIREBASE_CLIENT_EMAIL) {
+    const serviceAccount = {
+      type: process.env.FIREBASE_TYPE || 'service_account',
+      project_id: process.env.FIREBASE_PROJECT_ID,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID || '',
+      private_key: firebasePrivateKey,
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_CLIENT_ID || '',
+      auth_uri: process.env.FIREBASE_AUTH_URI || 'https://accounts.google.com/o/oauth2/auth',
+      token_uri: process.env.FIREBASE_TOKEN_URI || 'https://oauth2.googleapis.com/token',
+      auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL || 'https://www.googleapis.com/oauth2/v1/certs',
+      client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL || ''
+    };
 
-  // Use admin.cert() directly (not admin.credential.cert)
-  const app = admin.initializeApp({
-    credential: admin.cert(serviceAccount),
-  });
+    console.log('Firebase service account loaded for project:', serviceAccount.project_id);
 
-  // Access Firestore using getFirestore
-  db = getFirestore();
-  console.log('Firebase Admin SDK initialized successfully');
+    const firebaseApp = admin.initializeApp({
+      credential: admin.cert(serviceAccount),
+    });
+
+    db = getFirestore();
+    console.log('Firebase Admin SDK initialized successfully');
+  } else {
+    console.warn('⚠️ Firebase Admin SDK not fully configured; database operations will be bypassed.');
+  }
 } catch (error) {
   console.error('Firebase initialization error:', error.message);
-  console.error('Error details:', error);
-  process.exit(1);
 }
 
 // Payment packages configuration
@@ -511,13 +510,30 @@ app.get('/api/verify/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
 
+    if (!db) {
+      return res.json({
+        success: true,
+        subscription: { active: false, plan: null, end: null },
+        adFree: false,
+        adFreeEnd: null,
+        premiumLifeAccess: false,
+        coins: 0,
+        lastPayment: null
+      });
+    }
+
     const userRef = db.collection('eternora_userProfiles').doc(uid);
     const userDoc = await userRef.get();
 
     if (!userDoc.exists) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'User not found' 
+      return res.json({ 
+        success: true, 
+        subscription: { active: false, plan: null, end: null },
+        adFree: false,
+        adFreeEnd: null,
+        premiumLifeAccess: false,
+        coins: 0,
+        lastPayment: null
       });
     }
 
