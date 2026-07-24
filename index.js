@@ -577,10 +577,16 @@ app.get('/api/verify/:uid', async (req, res) => {
       lastPayment
     });
   } catch (error) {
-    console.error('Verify error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to verify subscription' 
+    console.error('Verify error (falling back to default free status):', error.message);
+    res.json({ 
+      success: true, 
+      subscription: { active: false, plan: null, end: null },
+      adFree: false,
+      adFreeEnd: null,
+      premiumLifeAccess: false,
+      coins: 0,
+      lastPayment: null,
+      warning: 'Fallback to default status due to error: ' + error.message
     });
   }
 });
